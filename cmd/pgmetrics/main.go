@@ -110,6 +110,7 @@ var ignoreEnvs = []string{
 }
 
 type options struct {
+	// collection options
 	collector.CollectConfig
 	// general
 	input     string
@@ -126,6 +127,8 @@ type options struct {
 }
 
 func (o *options) defaults() {
+	// collection options
+	o.CollectConfig = collector.DefaultCollectConfig()
 	// general
 	o.input = ""
 	o.help = ""
@@ -136,6 +139,7 @@ func (o *options) defaults() {
 	o.output = ""
 	o.tooLongSec = 60
 	o.nopager = false
+	// connection
 	o.passNone = false
 }
 
