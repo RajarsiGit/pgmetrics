@@ -184,7 +184,7 @@ func (o *options) parse() (args []string) {
 	s.StringVarLong(&o.CollectConfig.Table, "table", 'a', "")
 	s.StringVarLong(&o.CollectConfig.ExclTable, "exclude-table", 'A', "")
 	s.ListVarLong(&o.CollectConfig.Omit, "omit", 0, "")
-	s.UintVarLong(&o.CollectConfig.SqlLength, "sql-length", 0, "")
+	s.UintVarLong(&o.CollectConfig.SQLLength, "sql-length", 0, "")
 	s.UintVarLong(&o.CollectConfig.StmtsLimit, "statements-limit", 0, "")
 	// output
 	s.StringVarLong(&o.format, "format", 'f', "")

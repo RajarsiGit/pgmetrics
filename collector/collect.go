@@ -49,6 +49,8 @@ func makeKV(k, v string) string {
 	return fmt.Sprintf("%s=%s ", k, v2)
 }
 
+// CollectConfig is a bunch of options passed to the Collect() function to
+// specify which metrics to collect and how.
 type CollectConfig struct {
 	// general
 	TimeoutSec uint
@@ -59,7 +61,7 @@ type CollectConfig struct {
 	ExclSchema string
 	Table      string
 	ExclTable  string
-	SqlLength  uint
+	SQLLength  uint
 	StmtsLimit uint
 	Omit       []string
 
@@ -70,27 +72,35 @@ type CollectConfig struct {
 	Password string
 }
 
+// DefaultCollectConfig returns a CollectConfig initialized with default values.
+// Some environment variables are consulted.
 func DefaultCollectConfig() CollectConfig {
-	cc := CollectConfig{}
-	// general
-	cc.TimeoutSec = 5
-	cc.NoSizes = false
+	cc := CollectConfig{
+		// ------------------ general
+		TimeoutSec: 5,
+		//NoSizes: false,
 
-	// collection
-	cc.Schema = ""
-	cc.ExclSchema = ""
-	cc.Table = ""
-	cc.ExclTable = ""
-	cc.Omit = nil
-	cc.SqlLength = 500
-	cc.StmtsLimit = 100
+		// ------------------ collection
+		//Schema: "",
+		//ExclSchema: "",
+		//Table: "",
+		//ExclTable: "",
+		//Omit: nil,
+		SQLLength:  500,
+		StmtsLimit: 100,
 
-	// connection
+		// ------------------ connection
+		//Password: "",
+	}
+
+	// connection: host
 	if h := os.Getenv("PGHOST"); len(h) > 0 {
 		cc.Host = h
 	} else {
 		cc.Host = "/var/run/postgresql"
 	}
+
+	// connection: port
 	if ps := os.Getenv("PGPORT"); len(ps) > 0 {
 		if p, err := strconv.Atoi(ps); err == nil && p > 0 && p < 65536 {
 			cc.Port = uint16(p)
@@ -100,6 +110,8 @@ func DefaultCollectConfig() CollectConfig {
 	} else {
 		cc.Port = 5432
 	}
+
+	// connection: user
 	if u := os.Getenv("PGUSER"); len(u) > 0 {
 		cc.User = u
 	} else if u, err := user.Current(); err == nil && u != nil {
@@ -107,8 +119,6 @@ func DefaultCollectConfig() CollectConfig {
 	} else {
 		cc.User = ""
 	}
-
-	cc.Password = ""
 
 	return cc
 }
@@ -120,7 +130,16 @@ func getRegexp(r string) (rx *regexp.Regexp) {
 	return
 }
 
-func Collect(o CollectConfig, args []string) *pgmetrics.Model {
+// Collect actually performs the metrics collection, based on the given options.
+// If database names are specified, it connects to each in turn and accumulates
+// results. If none are specified, the connection is attempted without a
+// 'dbname' keyword (usually tries to connect to a database with same name
+// as the user).
+//
+// Ideally, this should return (*pgmetrics.Model, error). But for now, it does
+// a log.Fatal(). This will be rectified in the future, and
+// backwards-compatibility will be broken when that happens. You've been warned.
+func Collect(o CollectConfig, dbnames []string) *pgmetrics.Model {
 	// form connection string
 	var connstr string
 	if len(o.Host) > 0 {
@@ -142,10 +161,10 @@ func Collect(o CollectConfig, args []string) *pgmetrics.Model {
 
 	// collect from 1 or more DBs
 	c := &collector{}
-	if len(args) == 0 {
+	if len(dbnames) == 0 {
 		collectFromDB(connstr, c, o)
 	} else {
-		for _, dbname := range args {
+		for _, dbname := range dbnames {
 			collectFromDB(connstr+makeKV("dbname", dbname), c, o)
 		}
 	}
@@ -212,7 +231,7 @@ func (c *collector) collectFirst(db *sql.DB, o CollectConfig) {
 	c.rxExclTable = getRegexp(o.ExclTable)
 
 	// save sql length and statement limits
-	c.sqlLength = o.SqlLength
+	c.sqlLength = o.SQLLength
 	c.stmtsLimit = o.StmtsLimit
 
 	// current time is the report start time
